@@ -6,13 +6,15 @@ import { useNotification } from "web3uikit"
 import { ethers } from "ethers"
 
 export default function LotteryEntrance() {
-    const { chainId: chainIdHex, isWeb3Enabled } = useMoralis()
+    const { chainId: chainIdHex, isWeb3Enabled, Moralis } = useMoralis()
+    // These get re-rendered every time due to our connect button!
     const chainId = parseInt(chainIdHex)
+    // console.log(`ChainId is ${chainId}`)
     const raffleAddress = chainId in contractAddresses ? contractAddresses[chainId][0] : null
-    const [entrancefee, setEntranceFee] = useState("0")
+    const [entrancefee, setentrancefee] = useState("0")
     const [numPlayer, setNumPlayer] = useState("0")
     const [recentWinner, setRecentWinner] = useState("0")
-    //make entranceFee from normal variable to a hook
+    //make entrancefee from normal variable to a hook
     //entrancefee: the variable we call to get the entrance fee
     //entrancefee: the function we call to update or set that entrance fee
     //here useState tell us where the entrancefee is going to start which is 0
@@ -21,6 +23,7 @@ export default function LotteryEntrance() {
 
     const {
         runContractFunction: enterRaffle,
+        data: enterTxResponse,
         isLoading,
         isFetching,
     } = useWeb3Contract({
@@ -31,7 +34,9 @@ export default function LotteryEntrance() {
         msgValue: entrancefee,
     })
 
-    const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    /**View Functions */
+
+    const { runContractFunction: getentrancefee } = useWeb3Contract({
         abi: abi,
         contractAddress: raffleAddress, //specific network Id
         functionName: "enterRaffle",
@@ -45,11 +50,24 @@ export default function LotteryEntrance() {
         params: {},
     })
 
+    const { runContractFunction: getRecentWinner } = useWeb3Contract({
+        abi: abi,
+        contractAddress: raffleAddress,
+        functionName: "getRecentWinner",
+        params: {},
+    })
+
     async function updateUI() {
-        const entranceFeeFromCall = (await getEntranceFee()).toString()
+        // Another way we could make a contract call:
+        // const options = { abi, contractAddress: raffleAddress }
+        // const fee = await Moralis.executeFunction({
+        //     functionName: "getEntranceFee",
+        //     ...options,
+        // })
+        const entrancefeeFromCall = (await getentrancefee()).toString()
         const numPlayerFromCall = (await getNumberOfPlayers()).toString()
         const recentWinnerFromCall = await getRecentWinner()
-        setEntranceFee(entranceFeeFromCall)
+        setentrancefee(entrancefeeFromCall)
         setNumPlayer(numPlayerFromCall)
         setRecentWinner(recentWinnerFromCall)
     }
@@ -90,11 +108,14 @@ export default function LotteryEntrance() {
      *
      */
     const handleSuccess = async function (tx) {
-        await tx.wait(1)
-        handleNewNotification(tx)
-        updateUI()
+        try {
+            await tx.wait(1)
+            updateUIValues()
+            handleNewNotification(tx)
+        } catch (error) {
+            console.log(error)
+        }
     }
-
     const handleNewNotification = function () {
         dispatch({
             type: "info",
@@ -116,41 +137,34 @@ export default function LotteryEntrance() {
      */
 
     return (
-        <div>
-            Hi from Lottery entrance!
+        <div className="p-5">
+            <h1 className="py-4 px-4 font-bold text-3xl">Lottery</h1>
             {raffleAddress ? (
-                <div>
+                <>
                     <button
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 round ml-auto"
-                        onClick={async function () {
-                            //when this enterRaffle fn. is successful , we will do handle success
+                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded ml-auto"
+                        onClick={async () =>
                             await enterRaffle({
-                                //onComplete
-                                //onError
-                                //onSuccess checks to see a transaction is successful on metamask
+                                // onComplete:
+                                // onError:
                                 onSuccess: handleSuccess,
                                 onError: (error) => console.log(error),
-                                //Note: Always use this onError for any run contract functions, even for the reads,
-                                //      If any of my contract function breaks , I will get to know by this
                             })
-                        }}
+                        }
                         disabled={isLoading || isFetching}
                     >
                         {isLoading || isFetching ? (
                             <div className="animate-spin spinner-border h-8 w-8 border-b-2 rounded-full"></div>
                         ) : (
-                            <div>Enter Raffle</div>
+                            "Enter Raffle"
                         )}
                     </button>
-                    <div>
-                        Entrance Fee: {ethers.utils.formatUnits(entrancefee, "ether")} ETH Number
-                        of
-                    </div>
-                    <div>Players:{numPlayer}</div>
-                    <div>Recent Winner:{recentWinner}</div>
-                </div>
+                    <div>Entrance Fee: {ethers.utils.formatUnits(entrancefee, "ether")} ETH</div>
+                    <div>The current number of players is: {numPlayer}</div>
+                    <div>The most previous winner was: {recentWinner}</div>
+                </>
             ) : (
-                <div>No Raffle address detected</div>
+                <div>Please connect to a supported chain </div>
             )}
         </div>
     )
