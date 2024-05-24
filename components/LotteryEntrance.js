@@ -1,4 +1,4 @@
-import { contractAddresses, abi } from "../constants"
+import { abi, contractAddresses } from "../constants"
 // dont export from moralis when using react
 import { useMoralis, useWeb3Contract } from "react-moralis"
 import { useEffect, useState } from "react"
@@ -8,16 +8,18 @@ import { ethers } from "ethers"
 export default function LotteryEntrance() {
     const { chainId: chainIdHex, isWeb3Enabled, Moralis } = useMoralis()
     // These get re-rendered every time due to our connect button!
+
     const chainId = parseInt(chainIdHex)
     // console.log(`ChainId is ${chainId}`)
+
     const raffleAddress = chainId in contractAddresses ? contractAddresses[chainId][0] : null
-    const [entrancefee, setentrancefee] = useState("0")
-    const [numPlayer, setNumPlayer] = useState("0")
-    const [recentWinner, setRecentWinner] = useState("0")
-    //make entrancefee from normal variable to a hook
-    //entrancefee: the variable we call to get the entrance fee
-    //entrancefee: the function we call to update or set that entrance fee
-    //here useState tell us where the entrancefee is going to start which is 0
+    let [entrancefee, setentrancefee] = useState("0")
+    let [numPlayer, setNumPlayer] = useState("0")
+    let [recentWinner, setRecentWinner] = useState("0")
+    // make entrancefee from normal variable to a hook
+    // entrancefee: the variable we call to get the entrance fee
+    // entrancefee: the function we call to update or set that entrance fee
+    // here useState tell us where the entrancefee is going to start which is 0
 
     const dispatch = useNotification()
 
@@ -39,7 +41,7 @@ export default function LotteryEntrance() {
     const { runContractFunction: getentrancefee } = useWeb3Contract({
         abi: abi,
         contractAddress: raffleAddress, //specific network Id
-        functionName: "enterRaffle",
+        functionName: "getEntranceFee",
         params: {},
     })
 
@@ -107,15 +109,7 @@ export default function LotteryEntrance() {
      * 1. dispatches the notification on the screen
      *
      */
-    const handleSuccess = async function (tx) {
-        try {
-            await tx.wait(1)
-            updateUIValues()
-            handleNewNotification(tx)
-        } catch (error) {
-            console.log(error)
-        }
-    }
+
     const handleNewNotification = function () {
         dispatch({
             type: "info",
@@ -124,6 +118,15 @@ export default function LotteryEntrance() {
             position: "topR",
             icon: "bell",
         })
+    }
+    const handleSuccess = async function (tx) {
+        try {
+            await tx.wait(1)
+            updateUIValues()
+            handleNewNotification(tx)
+        } catch (error) {
+            console.log(error)
+        }
     }
 
     /**-------------------------------------------------------- */
